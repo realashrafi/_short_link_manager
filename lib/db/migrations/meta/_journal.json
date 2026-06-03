@@ -8,6 +8,13 @@
       "when": 1780469764296,
       "tag": "0000_ancient_professor_monster",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780474571401,
+      "tag": "0001_natural_leader",
+      "breakpoints": true
     }
   ]
 }
