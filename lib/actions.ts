@@ -6,35 +6,55 @@ import { z } from "zod";
 import { db } from "./db";
 import { links } from "./db/schema";
 
-const schema = z.object({
-    originalUrl: z.string().url({ message: "لینک معتبر وارد کنید" }),
+const createLinkSchema = z.object({
+    originalUrl: z.string().url("لینک معتبر وارد کنید"),
     title: z.string().optional(),
 });
 
-export async function createShortLink(prevState: any, formData: FormData) {
-    const validatedFields = schema.safeParse({
+export type CreateShortLinkState =
+    | {
+    ok: true;
+    slug: string;
+}
+    | {
+    ok: false;
+    fieldErrors?: {
+        originalUrl?: string[];
+        title?: string[];
+    };
+    formError?: string;
+};
+
+export async function createShortLink(
+    _prevState: CreateShortLinkState | undefined,
+    formData: FormData
+): Promise<CreateShortLinkState> {
+    const parsed = createLinkSchema.safeParse({
         originalUrl: formData.get("url"),
-        title: formData.get("title"),
+        title: formData.get("title") || undefined,
     });
 
-    if (!validatedFields.success) {
-        return { error: validatedFields.error.flatten().fieldErrors };
+    if (!parsed.success) {
+        return {
+            ok: false,
+            fieldErrors: parsed.error.flatten().fieldErrors,
+        };
     }
 
-    const { originalUrl, title } = validatedFields.data;
-    const shortSlug = nanoid(8); // تولید اسلاگ ۸ کاراکتری
+    const { originalUrl, title } = parsed.data;
+    const shortSlug = nanoid(8);
 
     try {
         await db.insert(links).values({
-            userId: "anonymous", // فعلا به صورت پیش‌فرض (بعداً با Auth جایگزین می‌شود)
+            userId: "anonymous",
             originalUrl,
-            title: title || "بدون عنوان",
+            title: title ?? null,
             shortSlug,
         });
 
-        revalidatePath("/"); // رفرش کردن دیتا در UI
-        return { success: true, slug: shortSlug };
-    } catch (error) {
-        return { error: { _form: ["خطایی در دیتابیس رخ داد"] } };
+        revalidatePath("/");
+        return { ok: true, slug: shortSlug };
+    } catch {
+        return { ok: false, formError: "خطایی در دیتابیس رخ داد" };
     }
 }
